@@ -13,7 +13,7 @@ import redis.clients.jedis.JedisCluster;
 
 @Configuration
 public class RedisClusterConfiguration {
-	@Value("${spring.redis.cluster.nodes:null}")
+	@Value("${spring.redis.nodes:null}")
 	private String nodes;
 	@Value("${spring.redis.pool.max-idle:1}")
 	private Integer maxIdle;
@@ -26,33 +26,26 @@ public class RedisClusterConfiguration {
 	@Value("${spring.redis.timeout:0}")
 	private Integer timeout;
 	
-	//config配置对象
-	public GenericObjectPoolConfig getConfig(){
+	@Bean 
+	public JedisCluster getInstance(){
+		//收集节点信息
+		Set<HostAndPort> infoList=new HashSet<HostAndPort>();
+		String[] node = nodes.split(",");
+		
+		for(String hostAndPort:node){
+			String ip = hostAndPort.split(":")[0];
+			Integer port = Integer.parseInt(hostAndPort.split(":")[1]);
+			infoList.add(new HostAndPort(ip, port));
+		}
+		//配置config
 		GenericObjectPoolConfig config=new GenericObjectPoolConfig();
 		config.setMaxIdle(maxIdle);
 		config.setMaxTotal(maxTotal);
-		config.setMaxWaitMillis(maxWait);
 		config.setMinIdle(minIdle);
-		return config;
-	}
-	//创建jedisCluster对象,由框架维护
-	@Bean
-	public JedisCluster getCluster(){
-		Set<HostAndPort> nodeSet=new HashSet<HostAndPort>();
-		//处理字符串
-		if(!("null".equals(nodes))){
-			String[] clusterNodes=nodes.split(",");
-			for (String node: clusterNodes) {
-				String[] hostAndPort = node.split(":");
-				nodeSet.add(new HostAndPort(hostAndPort[0],
-						Integer.parseInt(hostAndPort[1])));
-			}
-			JedisCluster jedis=
-			new JedisCluster(nodeSet,timeout,getConfig());
-			return jedis;
-		}
-		return null;
-	}
+		
+		JedisCluster jedis=new JedisCluster(infoList,config);				
+		return jedis;
+	}	
 }
 
 
